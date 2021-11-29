@@ -1,41 +1,65 @@
 <template>
-  <div class="hello">
-    <h1>{{ msg }}</h1>
-    <p>
-      For a guide and recipes on how to configure / customize this project,<br>
-      check out the
-      <a href="https://cli.vuejs.org" target="_blank" rel="noopener">vue-cli documentation</a>.
-    </p>
-    <h3>Installed CLI Plugins</h3>
-    <ul>
-      <li><a href="https://github.com/vuejs/vue-cli/tree/dev/packages/%40vue/cli-plugin-babel" target="_blank" rel="noopener">babel</a></li>
-    </ul>
-    <h3>Essential Links</h3>
-    <ul>
-      <li><a href="https://vuejs.org" target="_blank" rel="noopener">Core Docs</a></li>
-      <li><a href="https://forum.vuejs.org" target="_blank" rel="noopener">Forum</a></li>
-      <li><a href="https://chat.vuejs.org" target="_blank" rel="noopener">Community Chat</a></li>
-      <li><a href="https://twitter.com/vuejs" target="_blank" rel="noopener">Twitter</a></li>
-      <li><a href="https://news.vuejs.org" target="_blank" rel="noopener">News</a></li>
-    </ul>
-    <h3>Ecosystem</h3>
-    <ul>
-      <li><a href="https://router.vuejs.org" target="_blank" rel="noopener">vue-router</a></li>
-      <li><a href="https://vuex.vuejs.org" target="_blank" rel="noopener">vuex</a></li>
-      <li><a href="https://github.com/vuejs/vue-devtools#vue-devtools" target="_blank" rel="noopener">vue-devtools</a></li>
-      <li><a href="https://vue-loader.vuejs.org" target="_blank" rel="noopener">vue-loader</a></li>
-      <li><a href="https://github.com/vuejs/awesome-vue" target="_blank" rel="noopener">awesome-vue</a></li>
-    </ul>
+  <h1>S3 Test</h1>
+  <input type="file" class="uploader" ref="fileInput" @change="handleFileUpload">
+  <input type="button" value="UPLOAD" @click="uploadFile">
+  <input type="button" value="READ" @click="readFiles">
+  <div class="images">
+    <div class="images__s3image" v-for="image in images" :key="image.Key">
+      <img :src="image.src" :alt="image.Key" class="images__s3image">
+      <input type="button" value="X" class="images__delete" @click="deleteImage(image.Key)">
+    </div>
   </div>
 </template>
 
 <script>
+import { ref, reactive } from "vue";
+import AWSS3Handler from "./AWSS3Handler";
+
 export default {
-  name: 'HelloWorld',
-  props: {
-    msg: String
+  setup() {
+    // 객체 생성 시 매개 변수로 article_id를 넘긴다.
+    const awsS3Handler = new AWSS3Handler(/* article_id */);
+
+    const images = reactive([]);
+
+    const fileInput = ref(null);
+    let file;
+
+    /** AWS S3에서 파일 읽어오기 */
+    const readFiles = async () => {
+      images.length = 0; // 배열을 비움
+      images.push(...(await awsS3Handler.readAll()));
+    };
+
+    // 파일 등록 input 박스에 이벤트가 발생했을 경우
+    const handleFileUpload = () => {
+      file = fileInput.value.files[0];
+      console.log(`File Upload: ${file.name}\n`, { file });
+    };
+
+    /** AWS S3에 파일 등록하기 */
+    const uploadFile = async () => {
+      await awsS3Handler.upload(file.name, file); // 아마도 여기에는 넘버링 된 파일 이름으로 호출될 것
+      await readFiles();
+    };
+
+    /** AWS S3에 파일 삭제하기 */
+    const deleteImage = async (key) => {
+      await awsS3Handler.delete(key);
+      await readFiles();
+    };
+
+    return {
+      images,
+      fileInput,
+      handleFileUpload,
+      uploadFile,
+      readFiles,
+      deleteImage,
+    }
   }
 }
+
 </script>
 
 <!-- Add "scoped" attribute to limit CSS to this component only -->
@@ -53,5 +77,10 @@ li {
 }
 a {
   color: #42b983;
+}
+
+.images {
+  display: flex;
+  flex-wrap: wrap;
 }
 </style>
